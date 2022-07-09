@@ -1,0 +1,20 @@
+type ExampleEntity @entity {
+  id: ID!
+  count: BigInt!
+  original: Bytes! # address
+  from: Bytes! # address
+}
+
+type All @entity {
+  id: ID! # "all"
+
+  numAssets: Int!
+}
+
+type AssetToken @entity {
+  id: ID! # tokenId
+
+  supply: Int!
+  # numOwners: BigInt! # TODO
+  isNFT: Boolean
+}
