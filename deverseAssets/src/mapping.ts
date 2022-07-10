@@ -20,6 +20,8 @@ import {
 import {
   All, AssetToken, ExampleEntity
 } from "../generated/schema"
+import { log } from '@graphprotocol/graph-ts'
+import { ipfs } from '@graphprotocol/graph-ts'
 
 export function handleCreatorshipTransfer(event: CreatorshipTransfer): void {
   // Entities can be loaded from the store using a string ID; this ID
@@ -112,7 +114,7 @@ export function handleApproval(event: Approval): void {}
 export function handleApprovalForAll(event: ApprovalForAll): void {}
 
 export function handleTransferSingle(event: TransferSingle): void {
-  console.log("HERE");
+  log.debug("Handle Transfer Single, {}", [event.params.value.toI32().toString()]);
   let all = All.load('all')
   if (all == null) {
     all = new All('all');
@@ -121,9 +123,12 @@ export function handleTransferSingle(event: TransferSingle): void {
 
   let assetToken = AssetToken.load(event.params.id.toString())
   if (assetToken == null) {
+    let assetContract = Asset.bind(event.address);
     assetToken = new AssetToken(event.params.id.toString())
+
     assetToken.supply = event.params.value.toI32()
     assetToken.isNFT = (assetToken.supply == 1)
+    assetToken.tokenURI = assetContract.uri(event.params.id)
     all.numAssets = all.numAssets + 1
   }
   assetToken.save()

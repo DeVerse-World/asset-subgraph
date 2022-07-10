@@ -17,4 +17,5 @@ type AssetToken @entity {
   supply: Int!
   # numOwners: BigInt! # TODO
   isNFT: Boolean
+  tokenURI: String!
 }
