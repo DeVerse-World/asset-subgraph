@@ -137,7 +137,7 @@ export function handleTransferSingle(event: TransferSingle): void {
     let assetContract = Asset.bind(event.address);
     assetToken = new AssetToken(event.params.id.toString())
 
-    assetToken.isNFT = (assetToken.supply == ONE)
+    assetToken.isNFT = (quantity == ONE)
     assetToken.tokenURI = assetContract.uri(event.params.id)
   }
 
