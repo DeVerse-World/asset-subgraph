@@ -6,7 +6,7 @@ dataSources:
     name: Asset
     network: mumbai
     source:
-      address: "0x4663526746b8fDC6e67EEe35489f2D7706754d63"
+      address: "0xfeF9a3e066672Bbe6D3736a933665E97c9A2F4bc"
       abi: Asset
       startBlock: 27077238
     mapping:

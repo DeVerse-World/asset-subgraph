@@ -8,14 +8,33 @@ type ExampleEntity @entity {
 type All @entity {
   id: ID! # "all"
 
-  numAssets: Int!
+  numAssets: BigInt!
+  numAssetOwners: BigInt!
+  lastUpdate: BigInt!
 }
 
 type AssetToken @entity {
   id: ID! # tokenId
 
-  supply: Int!
+  supply: BigInt!
   # numOwners: BigInt! # TODO
   isNFT: Boolean
   tokenURI: String!
+  owner: Owner # only set for dual EIP-721/ EIP-1155 tokens
+}
+
+type AssetTokenOwned @entity {
+  id: ID! # owner_tokenId
+  owner: Owner!
+  token: AssetToken!
+
+  quantity: BigInt!
+}
+
+type Owner @entity {
+  id: ID! # address
+
+  assetTokens: [AssetTokenOwned!]! @derivedFrom(field: "owner")
+  numAssets: BigInt!
+  timestamp: BigInt!
 }

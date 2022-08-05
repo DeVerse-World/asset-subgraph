@@ -18,10 +18,14 @@ import {
   AdminChanged
 } from "../generated/Asset/Asset"
 import {
-  All, AssetToken, ExampleEntity
+  All, AssetToken, ExampleEntity, Owner, AssetTokenOwned
 } from "../generated/schema"
-import { log } from '@graphprotocol/graph-ts'
+import { log, store } from '@graphprotocol/graph-ts'
 import { ipfs } from '@graphprotocol/graph-ts'
+
+let ADDRESS_ZERO = "0x0000000000000000000000000000000000000000";
+let ONE = BigInt.fromI32(1);
+let ZERO = BigInt.fromI32(0);
 
 export function handleCreatorshipTransfer(event: CreatorshipTransfer): void {
   // Entities can be loaded from the store using a string ID; this ID
@@ -115,22 +119,88 @@ export function handleApprovalForAll(event: ApprovalForAll): void {}
 
 export function handleTransferSingle(event: TransferSingle): void {
   log.debug("Handle Transfer Single, {}", [event.params.value.toI32().toString()]);
+  let timestamp = event.block.timestamp;
+  let from = event.params.from.toHex();
+  let to = event.params.to.toHex();
+  let id = event.params.id.toString();
+  let quantity = event.params.value;
+
   let all = All.load('all')
   if (all == null) {
     all = new All('all');
-    all.numAssets = 0;
+    all.numAssets = ZERO;
   }
+  all.lastUpdate = timestamp;
 
   let assetToken = AssetToken.load(event.params.id.toString())
   if (assetToken == null) {
     let assetContract = Asset.bind(event.address);
     assetToken = new AssetToken(event.params.id.toString())
 
-    assetToken.supply = event.params.value.toI32()
-    assetToken.isNFT = (assetToken.supply == 1)
+    assetToken.isNFT = (assetToken.supply == ONE)
     assetToken.tokenURI = assetContract.uri(event.params.id)
-    all.numAssets = all.numAssets + 1
   }
+
+  if (from != ADDRESS_ZERO) {
+    let currentOwner = Owner.load(from);
+    if (currentOwner != null) {
+      currentOwner.numAssets = currentOwner.numAssets.minus(quantity);
+      if (currentOwner.numAssets.equals(ZERO)) {
+        all.numAssetOwners = all.numAssetOwners.minus(ONE);
+      }
+
+      let assetTokenOwned = AssetTokenOwned.load(from + '_' + id);
+      if (assetTokenOwned != null) {
+        assetTokenOwned.quantity = assetTokenOwned.quantity.minus(quantity);
+        if (assetTokenOwned.quantity.le(ZERO)) {
+          store.remove("AssetTokenOwned", assetTokenOwned.id);
+        } else {
+          assetTokenOwned.save();
+        }
+      }
+      currentOwner.save();
+    } else {
+      log.error("error from non existing owner {from} {id}", [from, id]);
+    }
+    assetToken.supply = assetToken.supply.minus(quantity);
+    all.numAssets = all.numAssets.minus(quantity);
+  }
+
+  if (to != ADDRESS_ZERO) {
+    assetToken.owner = to;
+
+    let newOwner = Owner.load(to);
+    if (newOwner == null) {
+      newOwner = new Owner(to);
+      newOwner.timestamp = timestamp;
+      newOwner.numAssets = ZERO;
+    }
+
+    assetToken.supply = assetToken.supply.plus(quantity);
+    all.numAssets = all.numAssets.plus(quantity);
+
+    let assetTokenOwned = AssetTokenOwned.load(to + '_' + id);
+    if (assetTokenOwned == null) {
+      assetTokenOwned = new AssetTokenOwned(to + '_' + id);
+      assetTokenOwned.owner = newOwner.id;
+      assetTokenOwned.token = id;
+      assetTokenOwned.quantity = ZERO;
+    }
+    assetTokenOwned.quantity = assetTokenOwned.quantity.plus(quantity);
+    assetTokenOwned.save();
+
+    newOwner.numAssets = newOwner.numAssets.plus(quantity);
+    if (newOwner.numAssets.equals(quantity)) {
+      all.numAssetOwners = all.numAssetOwners.plus(ONE);
+    }
+    newOwner.save();
+  } else {
+    // ---------------------------------------------------------------------------------------------------------------
+    // - TO ZERO ADDRESS: BURN (or void ?)
+    // ---------------------------------------------------------------------------------------------------------------
+    store.remove("AssetToken", assetToken.id);
+  }
+
   assetToken.save()
   all.save()
 }
